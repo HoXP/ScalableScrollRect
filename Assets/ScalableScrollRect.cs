@@ -4,47 +4,36 @@ using UnityEngine.UI;
 
 public class ScalableScrollRect : ScrollRect
 {
-    private float _damping = 0.5f;
-    private Vector2 _scaleRange = new Vector2(0.5f, 1f);
+    private Vector2 _scaleRange = new Vector2(1, 2);
+    private float _speed = 0.25f;
 
-    /// <summary>
-    /// 初始化地图缩放参数
-    /// </summary>
-    /// <param name="scaleRange">Content的localScale缩放范围</param>
-    /// <param name="damping">缩放速度</param>
-    public void Init(Vector2 scaleRange, float damping)
-    {
-        _scaleRange = scaleRange;
-        _damping = damping;
-    }
-
+    private int touchNum = 0;
     public override void OnBeginDrag(PointerEventData eventData)
     {
-        _touchNum = Input.touchCount;
-        if (_touchNum > 1)
+        if (Input.touchCount > 1)
         {
             return;
         }
         base.OnBeginDrag(eventData);
     }
+
     public override void OnDrag(PointerEventData eventData)
     {
-        if (_touchNum > 1)
+        if (Input.touchCount > 1)
         {
+            touchNum = Input.touchCount;
+            return;
+        }
+        else if (Input.touchCount == 1 && touchNum > 1)
+        {
+            touchNum = Input.touchCount;
+            base.OnBeginDrag(eventData);
             return;
         }
         base.OnDrag(eventData);
     }
-    public override void OnEndDrag(PointerEventData eventData)
-    {
-        _touchNum = Input.touchCount;
-        if (_touchNum == 1)
-        {
-            base.OnBeginDrag(eventData);
-            return;
-        }
-        base.OnEndDrag(eventData);
-    }
+    private float preX;
+    private float preY;
 
     private void Update()
     {
@@ -53,52 +42,74 @@ public class ScalableScrollRect : ScrollRect
             Touch t1 = Input.GetTouch(0);
             Touch t2 = Input.GetTouch(1);
 
-            _dis.x = Mathf.Abs(t1.position.x - t2.position.x);
-            _dis.y = Mathf.Abs(t1.position.y - t2.position.y);
+            Vector3 p1 = t1.position;
+            Vector3 p2 = t2.position;
+
+            float newX = Mathf.Abs(p1.x - p2.x);
+            float newY = Mathf.Abs(p1.y - p2.y);
 
             if (t1.phase == TouchPhase.Began || t2.phase == TouchPhase.Began)
             {
-                _prev.x = _dis.x;
-                _prev.y = _dis.y;
+                preX = newX;
+                preY = newY;
             }
             else if (t1.phase == TouchPhase.Moved && t2.phase == TouchPhase.Moved)
             {
-                _scale = (_dis.x + _dis.y - _prev.x - _prev.y) / (content.rect.width * _damping) + content.localScale.x;
-                //_scale = (_dis.x - _prev.x) / (content.rect.width * _damping) + content.localScale.x;
-
-                if (_scale > _scaleRange.x && _scale < _scaleRange.y)
+                scale = (newX + newY - preX - preY) / (content.rect.width * _speed) + content.localScale.x;
+                if (scale >= _scaleRange.x && scale <= _scaleRange.y)
                 {
-                    _ratio = _scale / content.localScale.x;
-                    _contentScale.x = _scale;
-                    _contentScale.y = _scale;
-                    content.localScale = _contentScale;
-
-                    _maxX = content.rect.width * _scale / 2 - viewRect.rect.width / 2;
-                    if (_maxX < 0) _maxX = 0;
-                    _minX = -_maxX;
-                    _maxY = content.rect.height * _scale / 2 - viewRect.rect.height / 2;
-                    if (_maxY < 0) _maxY = 0;
-                    _minY = -_maxY;
-
-                    _pos = content.position * _ratio;
-                    _pos.x = Mathf.Clamp(_pos.x, _minX, _maxX);
-                    _pos.y = Mathf.Clamp(_pos.y, _minY, _maxY);
-                    content.position = _pos;
+                    ratio = scale / content.localScale.x;
+                    content.localScale = new Vector3(scale, scale, 0);
+                    ClampPos();
                 }
             }
-            _prev.x = _dis.x;
-            _prev.y = _dis.y;
+            preX = newX;
+            preY = newY;
         }
     }
-    private int _touchNum = 0;
-    private Vector2 _prev = Vector2.zero;
-    private Vector2 _dis = Vector2.zero;
-    private Vector2 _contentScale = Vector2.zero;
-    private float _minX = 0;
-    private float _maxX = 0;
-    private float _minY = 0;
-    private float _maxY = 0;
-    private float _scale = 0;
-    private float _ratio = 0;
-    private Vector3 _pos = Vector3.zero;
+    private float scale = 0;
+    private float ratio = 0;
+
+    private void LateUpdate()
+    {
+        if (Input.touchCount == 2)
+        {
+            ClampPos();
+        }
+    }
+
+    /// <summary>
+    /// 限制位置
+    /// </summary>
+    private void ClampPos()
+    {
+        float half = 0.5f;
+        float maxX = content.rect.width * scale * half - viewRect.rect.width * half;
+        float minX = -maxX;
+
+        float maxY = content.rect.height * scale * half - viewRect.rect.height * half;
+        float minY = -maxY;
+
+        Vector3 pos = content.position * ratio;
+        //if (pos.x > maxX)
+        //{
+        //    pos.x = maxX;
+        //}
+        //else if (pos.x < minX)
+        //{
+        //    pos.x = minX;
+        //}
+        pos.x = Mathf.Clamp(pos.x, minX, maxX);
+        //if (pos.y > maxY)
+        //{
+        //    pos.y = maxY;
+        //}
+        //else if (pos.y < minY)
+        //{
+        //    pos.y = minY;
+        //}
+        pos.y = Mathf.Clamp(pos.y, minY, maxY);
+        pos.z = 0;
+        content.position = pos;
+    }
 }

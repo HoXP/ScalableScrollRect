@@ -44,30 +44,12 @@ public class ScalableScrollRect2 : ScrollRect
     }
 
     public override void OnBeginDrag(PointerEventData eventData)
-    {
-        _pointerIds[eventData.pointerId] = true;
-        if (!IsPointerIdValid(eventData.pointerId))
+    {//只有第一个触控点执行，多点触控不执行
+        if (Input.touchCount > 1)
         {
             return;
         }
-        if (Input.touchCount == 1)
-        {
-            base.OnBeginDrag(eventData);
-        }
-        else if (Input.touchCount == 2)
-        {
-            if (eventData.pointerId == 0)
-            {
-                _beginPos1.x = eventData.position.x;
-                _beginPos1.y = eventData.position.y;
-            }
-            if (eventData.pointerId == 1)
-            {
-                _beginPos2.x = eventData.position.x;
-                _beginPos2.y = eventData.position.y;
-            }
-            _beginDis = Vector2.Distance(_beginPos1, _beginPos2);
-        }
+        base.OnBeginDrag(eventData);
     }
     public override void OnDrag(PointerEventData eventData)
     {

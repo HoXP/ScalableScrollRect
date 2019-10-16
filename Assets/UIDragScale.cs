@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class DragScaleComponent : MonoBehaviour
+public class UIDragScale : MonoBehaviour
 {
     void Start()
     {
