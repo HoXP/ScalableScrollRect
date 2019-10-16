@@ -20,27 +20,30 @@ public class ScalableScrollRect : ScrollRect
 
     public override void OnBeginDrag(PointerEventData eventData)
     {
-        if (Input.touchCount > 1)
+        _touchNum = Input.touchCount;
+        if (_touchNum > 1)
         {
             return;
         }
         base.OnBeginDrag(eventData);
     }
-
     public override void OnDrag(PointerEventData eventData)
     {
-        if (Input.touchCount > 1)
+        if (_touchNum > 1)
         {
-            _touchNum = Input.touchCount;
-            return;
-        }
-        else if (Input.touchCount == 1 && _touchNum > 1)
-        {
-            _touchNum = Input.touchCount;
-            base.OnBeginDrag(eventData);
             return;
         }
         base.OnDrag(eventData);
+    }
+    public override void OnEndDrag(PointerEventData eventData)
+    {
+        _touchNum = Input.touchCount;
+        if (_touchNum == 1)
+        {
+            base.OnBeginDrag(eventData);
+            return;
+        }
+        base.OnEndDrag(eventData);
     }
 
     private void Update()
