@@ -28,8 +28,6 @@
         private bool m_HSliderExpand;
         private float m_HSliderHeight;
         [SerializeField]
-        private MovementType m_MovementType = MovementType.Elastic;
-        [SerializeField]
         private ScrollRectEvent m_OnValueChanged = new ScrollRectEvent();
         private Vector2 m_PointerStartLocalCursor = Vector2.zero;
         private Bounds m_PrevContentBounds;
@@ -37,7 +35,6 @@
         private Bounds m_PrevViewBounds;
         [NonSerialized]
         private RectTransform m_Rect;
-        private bool m_Scrolling;
         private DrivenRectTransformTracker m_Tracker;
         private Vector2 m_Velocity;
         [SerializeField]
@@ -84,7 +81,7 @@
         }
 
         private Vector2 CalculateOffset(Vector2 delta) =>
-            InternalCalculateOffset(ref this.m_ViewBounds, ref this.m_ContentBounds, this.m_Horizontal, this.m_Vertical, this.m_MovementType, ref delta);
+            InternalCalculateOffset(ref this.m_ViewBounds, ref this.m_ContentBounds, this.m_Horizontal, this.m_Vertical, ref delta);
 
         private void EnsureLayoutHasRebuilt()
         {
@@ -109,38 +106,35 @@
         {
         }
 
-        internal static Vector2 InternalCalculateOffset(ref Bounds viewBounds, ref Bounds contentBounds, bool horizontal, bool vertical, MovementType movementType, ref Vector2 delta)
+        internal static Vector2 InternalCalculateOffset(ref Bounds viewBounds, ref Bounds contentBounds, bool horizontal, bool vertical, ref Vector2 delta)
         {
             Vector2 zero = Vector2.zero;
-            if (movementType != MovementType.Unrestricted)
+            Vector2 min = contentBounds.min;
+            Vector2 max = contentBounds.max;
+            if (horizontal)
             {
-                Vector2 min = contentBounds.min;
-                Vector2 max = contentBounds.max;
-                if (horizontal)
+                min.x += delta.x;
+                max.x += delta.x;
+                if (min.x > viewBounds.min.x)
                 {
-                    min.x += delta.x;
-                    max.x += delta.x;
-                    if (min.x > viewBounds.min.x)
-                    {
-                        zero.x = viewBounds.min.x - min.x;
-                    }
-                    else if (max.x < viewBounds.max.x)
-                    {
-                        zero.x = viewBounds.max.x - max.x;
-                    }
+                    zero.x = viewBounds.min.x - min.x;
                 }
-                if (vertical)
+                else if (max.x < viewBounds.max.x)
                 {
-                    min.y += delta.y;
-                    max.y += delta.y;
-                    if (max.y < viewBounds.max.y)
-                    {
-                        zero.y = viewBounds.max.y - max.y;
-                    }
-                    else if (min.y > viewBounds.min.y)
-                    {
-                        zero.y = viewBounds.min.y - min.y;
-                    }
+                    zero.x = viewBounds.max.x - max.x;
+                }
+            }
+            if (vertical)
+            {
+                min.y += delta.y;
+                max.y += delta.y;
+                if (max.y < viewBounds.max.y)
+                {
+                    zero.y = viewBounds.max.y - max.y;
+                }
+                else if (min.y > viewBounds.min.y)
+                {
+                    zero.y = viewBounds.min.y - min.y;
                 }
             }
             return zero;
@@ -179,11 +173,8 @@
                     {
                         this.m_Velocity[i] = 0f;
                     }
-                    if (this.m_MovementType == MovementType.Clamped)
-                    {
-                        offset = this.CalculateOffset(anchoredPosition - this.m_Content.anchoredPosition);
-                        anchoredPosition += offset;
-                    }
+                    offset = this.CalculateOffset(anchoredPosition - this.m_Content.anchoredPosition);
+                    anchoredPosition += offset;
                     this.SetContentAnchoredPosition(anchoredPosition);
                 }
                 if (this.m_Dragging) // && this.m_Inertia
@@ -199,7 +190,6 @@
                     this.UpdatePrevData();
                 }
                 this.UpdateScrollbarVisibility();
-                this.m_Scrolling = false;
             }
         }
 
@@ -230,7 +220,6 @@
             {
                 this.m_VerticalScrollbar.onValueChanged.RemoveListener(new UnityAction<float>(this.SetVerticalNormalizedPosition));
             }
-            this.m_Scrolling = false;
             this.m_HasRebuiltLayout = false;
             this.m_Tracker.Clear();
             this.m_Velocity = Vector2.zero;
@@ -248,17 +237,6 @@
                 Vector2 position = this.m_ContentStartPosition + vector2;
                 Vector2 vector4 = this.CalculateOffset(position - this.m_Content.anchoredPosition);
                 position += vector4;
-                if (this.m_MovementType == MovementType.Elastic)
-                {
-                    if (vector4.x != 0f)
-                    {
-                        position.x -= RubberDelta(vector4.x, this.m_ViewBounds.size.x);
-                    }
-                    if (vector4.y != 0f)
-                    {
-                        position.y -= RubberDelta(vector4.y, this.m_ViewBounds.size.y);
-                    }
-                }
                 this.SetContentAnchoredPosition(position);
             }
         }
@@ -443,38 +421,35 @@
                 AdjustBounds(ref this.m_ViewBounds, ref pivot, ref size, ref center);
                 this.m_ContentBounds.size = size;
                 this.m_ContentBounds.center = center;
-                if (this.movementType == MovementType.Clamped)
+                Vector2 zero = Vector2.zero;
+                if (this.m_ViewBounds.max.x > this.m_ContentBounds.max.x)
                 {
-                    Vector2 zero = Vector2.zero;
-                    if (this.m_ViewBounds.max.x > this.m_ContentBounds.max.x)
+                    zero.x = Math.Min((float)(this.m_ViewBounds.min.x - this.m_ContentBounds.min.x), (float)(this.m_ViewBounds.max.x - this.m_ContentBounds.max.x));
+                }
+                else if (this.m_ViewBounds.min.x < this.m_ContentBounds.min.x)
+                {
+                    zero.x = Math.Max((float)(this.m_ViewBounds.min.x - this.m_ContentBounds.min.x), (float)(this.m_ViewBounds.max.x - this.m_ContentBounds.max.x));
+                }
+                if (this.m_ViewBounds.min.y < this.m_ContentBounds.min.y)
+                {
+                    zero.y = Math.Max((float)(this.m_ViewBounds.min.y - this.m_ContentBounds.min.y), (float)(this.m_ViewBounds.max.y - this.m_ContentBounds.max.y));
+                }
+                else if (this.m_ViewBounds.max.y > this.m_ContentBounds.max.y)
+                {
+                    zero.y = Math.Min((float)(this.m_ViewBounds.min.y - this.m_ContentBounds.min.y), (float)(this.m_ViewBounds.max.y - this.m_ContentBounds.max.y));
+                }
+                if (zero.sqrMagnitude > float.Epsilon)
+                {
+                    center = (Vector3)(this.m_Content.anchoredPosition + zero);
+                    if (!this.m_Horizontal)
                     {
-                        zero.x = Math.Min((float)(this.m_ViewBounds.min.x - this.m_ContentBounds.min.x), (float)(this.m_ViewBounds.max.x - this.m_ContentBounds.max.x));
+                        center.x = this.m_Content.anchoredPosition.x;
                     }
-                    else if (this.m_ViewBounds.min.x < this.m_ContentBounds.min.x)
+                    if (!this.m_Vertical)
                     {
-                        zero.x = Math.Max((float)(this.m_ViewBounds.min.x - this.m_ContentBounds.min.x), (float)(this.m_ViewBounds.max.x - this.m_ContentBounds.max.x));
+                        center.y = this.m_Content.anchoredPosition.y;
                     }
-                    if (this.m_ViewBounds.min.y < this.m_ContentBounds.min.y)
-                    {
-                        zero.y = Math.Max((float)(this.m_ViewBounds.min.y - this.m_ContentBounds.min.y), (float)(this.m_ViewBounds.max.y - this.m_ContentBounds.max.y));
-                    }
-                    else if (this.m_ViewBounds.max.y > this.m_ContentBounds.max.y)
-                    {
-                        zero.y = Math.Min((float)(this.m_ViewBounds.min.y - this.m_ContentBounds.min.y), (float)(this.m_ViewBounds.max.y - this.m_ContentBounds.max.y));
-                    }
-                    if (zero.sqrMagnitude > float.Epsilon)
-                    {
-                        center = (Vector3)(this.m_Content.anchoredPosition + zero);
-                        if (!this.m_Horizontal)
-                        {
-                            center.x = this.m_Content.anchoredPosition.x;
-                        }
-                        if (!this.m_Vertical)
-                        {
-                            center.y = this.m_Content.anchoredPosition.y;
-                        }
-                        AdjustBounds(ref this.m_ViewBounds, ref pivot, ref size, ref center);
-                    }
+                    AdjustBounds(ref this.m_ViewBounds, ref pivot, ref size, ref center);
                 }
             }
         }
@@ -699,16 +674,6 @@
         public virtual float minWidth =>
             -1f;
 
-        public MovementType movementType
-        {
-            get =>
-                this.m_MovementType;
-            set
-            {
-                this.m_MovementType = value;
-            }
-        }
-
         public Vector2 normalizedPosition
         {
             get =>
@@ -863,13 +828,6 @@
                 }
                 return true;
             }
-        }
-
-        public enum MovementType
-        {
-            Unrestricted,
-            Elastic,
-            Clamped
         }
 
         public enum ScrollbarVisibility
