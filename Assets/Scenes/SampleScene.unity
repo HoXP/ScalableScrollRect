@@ -951,8 +951,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Content: {fileID: 1008616375}
-  m_DecelerationRate: 0.135
-  m_Elasticity: 0.1
   m_Horizontal: 1
   m_HorizontalScrollbar: {fileID: 0}
   m_HorizontalScrollbarSpacing: 0
@@ -963,7 +961,7 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: UnityEngine.UI.Ext.ScrollRect+ScrollRectEvent, Assembly-CSharp, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
-  m_ScrollSensitivity: 1
+  m_ScrollSensitivity: 0
   m_Vertical: 1
   m_VerticalScrollbar: {fileID: 0}
   m_VerticalScrollbarSpacing: 0

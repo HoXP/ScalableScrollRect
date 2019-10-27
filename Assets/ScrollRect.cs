@@ -6,18 +6,14 @@
     using UnityEngine.EventSystems;
 
     [AddComponentMenu("UI/Scroll Rect", 0x25), SelectionBase, ExecuteAlways, DisallowMultipleComponent, RequireComponent(typeof(RectTransform))]
-    public class ScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, IScrollHandler, ICanvasElement, ILayoutElement, ILayoutGroup, IEventSystemHandler, ILayoutController
+    public class ScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, ICanvasElement, ILayoutElement, ILayoutGroup, IEventSystemHandler, ILayoutController
     {
         [SerializeField]
         private RectTransform m_Content;
         protected Bounds m_ContentBounds;
         protected Vector2 m_ContentStartPosition = Vector2.zero;
         private readonly Vector3[] m_Corners = new Vector3[4];
-        [SerializeField]
-        private float m_DecelerationRate = 0.135f;
         private bool m_Dragging;
-        [SerializeField]
-        private float m_Elasticity = 0.1f;
         [NonSerialized]
         private bool m_HasRebuiltLayout = false;
         [SerializeField]
@@ -42,8 +38,6 @@
         [NonSerialized]
         private RectTransform m_Rect;
         private bool m_Scrolling;
-        [SerializeField]
-        private float m_ScrollSensitivity = 1f;
         private DrivenRectTransformTracker m_Tracker;
         private Vector2 m_Velocity;
         [SerializeField]
@@ -183,25 +177,7 @@
                     Vector2 anchoredPosition = this.m_Content.anchoredPosition;
                     for (int i = 0; i < 2; i++)
                     {
-                        if ((this.m_MovementType == MovementType.Elastic) && (offset[i] != 0f))
-                        {
-                            float currentVelocity = this.m_Velocity[i];
-                            float elasticity = this.m_Elasticity;
-                            if (this.m_Scrolling)
-                            {
-                                elasticity *= 3f;
-                            }
-                            anchoredPosition[i] = Mathf.SmoothDamp(this.m_Content.anchoredPosition[i], this.m_Content.anchoredPosition[i] + offset[i], ref currentVelocity, elasticity, float.PositiveInfinity, unscaledDeltaTime);
-                            if (Mathf.Abs(currentVelocity) < 1f)
-                            {
-                                currentVelocity = 0f;
-                            }
-                            this.m_Velocity[i] = currentVelocity;
-                        }
-                        else
-                        {
-                            this.m_Velocity[i] = 0f;
-                        }
+                        this.m_Velocity[i] = 0f;
                     }
                     if (this.m_MovementType == MovementType.Clamped)
                     {
@@ -321,46 +297,6 @@
         protected override void OnRectTransformDimensionsChange()
         {
             this.SetDirty();
-        }
-
-        public virtual void OnScroll(PointerEventData data)
-        {
-            if (this.IsActive())
-            {
-                this.EnsureLayoutHasRebuilt();
-                this.UpdateBounds();
-                Vector2 scrollDelta = data.scrollDelta;
-                scrollDelta.y *= -1f;
-                if (this.vertical && !this.horizontal)
-                {
-                    float introduced2 = Mathf.Abs(scrollDelta.x);
-                    if (introduced2 > Mathf.Abs(scrollDelta.y))
-                    {
-                        scrollDelta.y = scrollDelta.x;
-                    }
-                    scrollDelta.x = 0f;
-                }
-                if (this.horizontal && !this.vertical)
-                {
-                    float introduced3 = Mathf.Abs(scrollDelta.y);
-                    if (introduced3 > Mathf.Abs(scrollDelta.x))
-                    {
-                        scrollDelta.x = scrollDelta.y;
-                    }
-                    scrollDelta.y = 0f;
-                }
-                if (data.IsScrolling())
-                {
-                    this.m_Scrolling = true;
-                }
-                Vector2 position = this.m_Content.anchoredPosition + ((Vector2)(scrollDelta * this.m_ScrollSensitivity));
-                if (this.m_MovementType == MovementType.Clamped)
-                {
-                    position += this.CalculateOffset(position - this.m_Content.anchoredPosition);
-                }
-                this.SetContentAnchoredPosition(position);
-                this.UpdateBounds();
-            }
         }
 
         protected override void OnValidate()
@@ -668,26 +604,6 @@
             }
         }
 
-        public float decelerationRate
-        {
-            get =>
-                this.m_DecelerationRate;
-            set
-            {
-                this.m_DecelerationRate = value;
-            }
-        }
-
-        public float elasticity
-        {
-            get =>
-                this.m_Elasticity;
-            set
-            {
-                this.m_Elasticity = value;
-            }
-        }
-
         public virtual float flexibleHeight =>
             -1f;
 
@@ -829,16 +745,6 @@
                     this.m_Rect = base.GetComponent<RectTransform>();
                 }
                 return this.m_Rect;
-            }
-        }
-
-        public float scrollSensitivity
-        {
-            get =>
-                this.m_ScrollSensitivity;
-            set
-            {
-                this.m_ScrollSensitivity = value;
             }
         }
 
