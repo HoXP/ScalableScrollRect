@@ -1,8 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
-public class ScalableScrollRect : ScrollRect
+public class ScalableScrollRect : ScrollRectEx
 {
     private Vector2 _scaleRange = new Vector2(1, 2);
     private float _speed = 0.25f;
