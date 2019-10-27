@@ -6,7 +6,7 @@
     using UnityEngine.EventSystems;
 
     [AddComponentMenu("UI/Scroll Rect", 0x25), SelectionBase, ExecuteAlways, DisallowMultipleComponent, RequireComponent(typeof(RectTransform))]
-    public class ScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, ICanvasElement, ILayoutElement, ILayoutGroup, IEventSystemHandler, ILayoutController
+    public class ScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, ICanvasElement, ILayoutElement, IEventSystemHandler
     {
         [SerializeField]
         private RectTransform m_Content;
@@ -18,8 +18,6 @@
         private bool m_HasRebuiltLayout = false;
         [SerializeField]
         private bool m_Horizontal = true;
-        private bool m_HSliderExpand;
-        private float m_HSliderHeight;
         [SerializeField]
         private ScrollRectEvent m_OnValueChanged = new ScrollRectEvent();
         private Vector2 m_PointerStartLocalCursor = Vector2.zero;
@@ -28,7 +26,6 @@
         private Bounds m_PrevViewBounds;
         [NonSerialized]
         private RectTransform m_Rect;
-        private DrivenRectTransformTracker m_Tracker;
         private Vector2 m_Velocity;
         [SerializeField]
         private bool m_Vertical = true;
@@ -36,8 +33,6 @@
         [SerializeField]
         private RectTransform m_Viewport;
         private RectTransform m_ViewRect;
-        private bool m_VSliderExpand;
-        private float m_VSliderWidth;
 
         protected ScrollRect()
         {
@@ -197,7 +192,6 @@
         {
             CanvasUpdateRegistry.UnRegisterCanvasElementForRebuild(this);
             this.m_HasRebuiltLayout = false;
-            this.m_Tracker.Clear();
             this.m_Velocity = Vector2.zero;
             LayoutRebuilder.MarkLayoutForRebuild(this.rectTransform);
             base.OnDisable();
@@ -304,39 +298,6 @@
         private void SetHorizontalNormalizedPosition(float value)
         {
             this.SetNormalizedPosition(value, 0);
-        }
-
-        public virtual void SetLayoutHorizontal()
-        {
-            this.m_Tracker.Clear();
-            if (this.m_HSliderExpand || this.m_VSliderExpand)
-            {
-                this.m_Tracker.Add(this, this.viewRect, DrivenTransformProperties.SizeDelta | DrivenTransformProperties.Anchors | DrivenTransformProperties.AnchoredPosition);
-                this.viewRect.anchorMin = Vector2.zero;
-                this.viewRect.anchorMax = Vector2.one;
-                this.viewRect.sizeDelta = Vector2.zero;
-                this.viewRect.anchoredPosition = Vector2.zero;
-                LayoutRebuilder.ForceRebuildLayoutImmediate(this.content);
-                this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
-                this.m_ContentBounds = this.GetBounds();
-            }
-            if (this.m_VSliderExpand && this.vScrollingNeeded)
-            {
-                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth), this.viewRect.sizeDelta.y);
-                LayoutRebuilder.ForceRebuildLayoutImmediate(this.content);
-                this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
-                this.m_ContentBounds = this.GetBounds();
-            }
-            if (this.m_HSliderExpand && this.hScrollingNeeded)
-            {
-                this.viewRect.sizeDelta = new Vector2(this.viewRect.sizeDelta.x, -(this.m_HSliderHeight));
-                this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
-                this.m_ContentBounds = this.GetBounds();
-            }
-            if ((this.m_VSliderExpand && this.vScrollingNeeded) && ((this.viewRect.sizeDelta.x == 0f) && (this.viewRect.sizeDelta.y < 0f)))
-            {
-                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth), this.viewRect.sizeDelta.y);
-            }
         }
 
         public virtual void SetLayoutVertical()
