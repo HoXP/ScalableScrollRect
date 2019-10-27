@@ -18,13 +18,6 @@
         private bool m_HasRebuiltLayout = false;
         [SerializeField]
         private bool m_Horizontal = true;
-        [SerializeField]
-        private Scrollbar m_HorizontalScrollbar;
-        private RectTransform m_HorizontalScrollbarRect;
-        [SerializeField]
-        private float m_HorizontalScrollbarSpacing;
-        [SerializeField]
-        private ScrollbarVisibility m_HorizontalScrollbarVisibility;
         private bool m_HSliderExpand;
         private float m_HSliderHeight;
         [SerializeField]
@@ -39,13 +32,6 @@
         private Vector2 m_Velocity;
         [SerializeField]
         private bool m_Vertical = true;
-        [SerializeField]
-        private Scrollbar m_VerticalScrollbar;
-        private RectTransform m_VerticalScrollbarRect;
-        [SerializeField]
-        private float m_VerticalScrollbarSpacing;
-        [SerializeField]
-        private ScrollbarVisibility m_VerticalScrollbarVisibility;
         private Bounds m_ViewBounds;
         [SerializeField]
         private RectTransform m_Viewport;
@@ -184,12 +170,10 @@
                 }
                 if (((this.m_ViewBounds != this.m_PrevViewBounds) || (this.m_ContentBounds != this.m_PrevContentBounds)) || (this.m_Content.anchoredPosition != this.m_PrevPosition))
                 {
-                    this.UpdateScrollbars(offset);
                     UISystemProfilerApi.AddMarker("ScrollRect.value", this);
                     this.m_OnValueChanged.Invoke(this.normalizedPosition);
                     this.UpdatePrevData();
                 }
-                this.UpdateScrollbarVisibility();
             }
         }
 
@@ -212,14 +196,6 @@
         protected override void OnDisable()
         {
             CanvasUpdateRegistry.UnRegisterCanvasElementForRebuild(this);
-            if (this.m_HorizontalScrollbar != null)
-            {
-                this.m_HorizontalScrollbar.onValueChanged.RemoveListener(new UnityAction<float>(this.SetHorizontalNormalizedPosition));
-            }
-            if (this.m_VerticalScrollbar != null)
-            {
-                this.m_VerticalScrollbar.onValueChanged.RemoveListener(new UnityAction<float>(this.SetVerticalNormalizedPosition));
-            }
             this.m_HasRebuiltLayout = false;
             this.m_Tracker.Clear();
             this.m_Velocity = Vector2.zero;
@@ -244,14 +220,6 @@
         protected override void OnEnable()
         {
             base.OnEnable();
-            if (this.m_HorizontalScrollbar != null)
-            {
-                this.m_HorizontalScrollbar.onValueChanged.AddListener(new UnityAction<float>(this.SetHorizontalNormalizedPosition));
-            }
-            if (this.m_VerticalScrollbar != null)
-            {
-                this.m_VerticalScrollbar.onValueChanged.AddListener(new UnityAction<float>(this.SetVerticalNormalizedPosition));
-            }
             CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
             this.SetDirty();
         }
@@ -291,7 +259,6 @@
             if (executing == CanvasUpdate.PostLayout)
             {
                 this.UpdateBounds();
-                this.UpdateScrollbars(Vector2.zero);
                 this.UpdatePrevData();
                 this.m_HasRebuiltLayout = true;
             }
@@ -355,26 +322,25 @@
             }
             if (this.m_VSliderExpand && this.vScrollingNeeded)
             {
-                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth + this.m_VerticalScrollbarSpacing), this.viewRect.sizeDelta.y);
+                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth), this.viewRect.sizeDelta.y);
                 LayoutRebuilder.ForceRebuildLayoutImmediate(this.content);
                 this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
                 this.m_ContentBounds = this.GetBounds();
             }
             if (this.m_HSliderExpand && this.hScrollingNeeded)
             {
-                this.viewRect.sizeDelta = new Vector2(this.viewRect.sizeDelta.x, -(this.m_HSliderHeight + this.m_HorizontalScrollbarSpacing));
+                this.viewRect.sizeDelta = new Vector2(this.viewRect.sizeDelta.x, -(this.m_HSliderHeight));
                 this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
                 this.m_ContentBounds = this.GetBounds();
             }
             if ((this.m_VSliderExpand && this.vScrollingNeeded) && ((this.viewRect.sizeDelta.x == 0f) && (this.viewRect.sizeDelta.y < 0f)))
             {
-                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth + this.m_VerticalScrollbarSpacing), this.viewRect.sizeDelta.y);
+                this.viewRect.sizeDelta = new Vector2(-(this.m_VSliderWidth), this.viewRect.sizeDelta.y);
             }
         }
 
         public virtual void SetLayoutVertical()
         {
-            this.UpdateScrollbarLayout();
             this.m_ViewBounds = new Bounds((Vector3)this.viewRect.rect.center, (Vector3)this.viewRect.rect.size);
             this.m_ContentBounds = this.GetBounds();
         }
@@ -457,34 +423,6 @@
         private void UpdateCachedData()
         {
             Transform transform = base.transform;
-            this.m_HorizontalScrollbarRect = (this.m_HorizontalScrollbar != null) ? (this.m_HorizontalScrollbar.transform as RectTransform) : null;
-            this.m_VerticalScrollbarRect = (this.m_VerticalScrollbar != null) ? (this.m_VerticalScrollbar.transform as RectTransform) : null;
-            bool flag = this.viewRect.parent == transform;
-            bool flag2 = (this.m_HorizontalScrollbarRect == null) || (this.m_HorizontalScrollbarRect.parent == transform);
-            bool flag3 = (this.m_VerticalScrollbarRect == null) || (this.m_VerticalScrollbarRect.parent == transform);
-            bool flag4 = (flag && flag2) && flag3;
-            this.m_HSliderExpand = (flag4 && (this.m_HorizontalScrollbarRect != null)) && (this.horizontalScrollbarVisibility == ScrollbarVisibility.AutoHideAndExpandViewport);
-            this.m_VSliderExpand = (flag4 && (this.m_VerticalScrollbarRect != null)) && (this.verticalScrollbarVisibility == ScrollbarVisibility.AutoHideAndExpandViewport);
-            this.m_HSliderHeight = (this.m_HorizontalScrollbarRect != null) ? this.m_HorizontalScrollbarRect.rect.height : 0f;
-            this.m_VSliderWidth = (this.m_VerticalScrollbarRect != null) ? this.m_VerticalScrollbarRect.rect.width : 0f;
-        }
-
-        private static void UpdateOneScrollbarVisibility(bool xScrollingNeeded, bool xAxisEnabled, ScrollbarVisibility scrollbarVisibility, Scrollbar scrollbar)
-        {
-            if (scrollbar != null)
-            {
-                if (scrollbarVisibility == ScrollbarVisibility.Permanent)
-                {
-                    if (scrollbar.gameObject.activeSelf != xAxisEnabled)
-                    {
-                        scrollbar.gameObject.SetActive(xAxisEnabled);
-                    }
-                }
-                else if (scrollbar.gameObject.activeSelf != xScrollingNeeded)
-                {
-                    scrollbar.gameObject.SetActive(xScrollingNeeded);
-                }
-            }
         }
 
         protected void UpdatePrevData()
@@ -500,75 +438,7 @@
             this.m_PrevViewBounds = this.m_ViewBounds;
             this.m_PrevContentBounds = this.m_ContentBounds;
         }
-
-        private void UpdateScrollbarLayout()
-        {
-            if (this.m_VSliderExpand && (this.m_HorizontalScrollbar != null))
-            {
-                this.m_Tracker.Add(this, this.m_HorizontalScrollbarRect, DrivenTransformProperties.SizeDeltaX | DrivenTransformProperties.AnchorMaxX | DrivenTransformProperties.AnchorMinX | DrivenTransformProperties.AnchoredPositionX);
-                this.m_HorizontalScrollbarRect.anchorMin = new Vector2(0f, this.m_HorizontalScrollbarRect.anchorMin.y);
-                this.m_HorizontalScrollbarRect.anchorMax = new Vector2(1f, this.m_HorizontalScrollbarRect.anchorMax.y);
-                this.m_HorizontalScrollbarRect.anchoredPosition = new Vector2(0f, this.m_HorizontalScrollbarRect.anchoredPosition.y);
-                if (this.vScrollingNeeded)
-                {
-                    this.m_HorizontalScrollbarRect.sizeDelta = new Vector2(-(this.m_VSliderWidth + this.m_VerticalScrollbarSpacing), this.m_HorizontalScrollbarRect.sizeDelta.y);
-                }
-                else
-                {
-                    this.m_HorizontalScrollbarRect.sizeDelta = new Vector2(0f, this.m_HorizontalScrollbarRect.sizeDelta.y);
-                }
-            }
-            if (this.m_HSliderExpand && (this.m_VerticalScrollbar != null))
-            {
-                this.m_Tracker.Add(this, this.m_VerticalScrollbarRect, DrivenTransformProperties.SizeDeltaY | DrivenTransformProperties.AnchorMaxY | DrivenTransformProperties.AnchorMinY | DrivenTransformProperties.AnchoredPositionY);
-                this.m_VerticalScrollbarRect.anchorMin = new Vector2(this.m_VerticalScrollbarRect.anchorMin.x, 0f);
-                this.m_VerticalScrollbarRect.anchorMax = new Vector2(this.m_VerticalScrollbarRect.anchorMax.x, 1f);
-                this.m_VerticalScrollbarRect.anchoredPosition = new Vector2(this.m_VerticalScrollbarRect.anchoredPosition.x, 0f);
-                if (this.hScrollingNeeded)
-                {
-                    this.m_VerticalScrollbarRect.sizeDelta = new Vector2(this.m_VerticalScrollbarRect.sizeDelta.x, -(this.m_HSliderHeight + this.m_HorizontalScrollbarSpacing));
-                }
-                else
-                {
-                    this.m_VerticalScrollbarRect.sizeDelta = new Vector2(this.m_VerticalScrollbarRect.sizeDelta.x, 0f);
-                }
-            }
-        }
-
-        private void UpdateScrollbars(Vector2 offset)
-        {
-            if (this.m_HorizontalScrollbar != null)
-            {
-                if (this.m_ContentBounds.size.x > 0f)
-                {
-                    this.m_HorizontalScrollbar.size = Mathf.Clamp01((this.m_ViewBounds.size.x - Mathf.Abs(offset.x)) / this.m_ContentBounds.size.x);
-                }
-                else
-                {
-                    this.m_HorizontalScrollbar.size = 1f;
-                }
-                this.m_HorizontalScrollbar.value = this.horizontalNormalizedPosition;
-            }
-            if (this.m_VerticalScrollbar != null)
-            {
-                if (this.m_ContentBounds.size.y > 0f)
-                {
-                    this.m_VerticalScrollbar.size = Mathf.Clamp01((this.m_ViewBounds.size.y - Mathf.Abs(offset.y)) / this.m_ContentBounds.size.y);
-                }
-                else
-                {
-                    this.m_VerticalScrollbar.size = 1f;
-                }
-                this.m_VerticalScrollbar.value = this.verticalNormalizedPosition;
-            }
-        }
-
-        private void UpdateScrollbarVisibility()
-        {
-            UpdateOneScrollbarVisibility(this.vScrollingNeeded, this.m_Vertical, this.m_VerticalScrollbarVisibility, this.m_VerticalScrollbar);
-            UpdateOneScrollbarVisibility(this.hScrollingNeeded, this.m_Horizontal, this.m_HorizontalScrollbarVisibility, this.m_HorizontalScrollbar);
-        }
-
+        
         public RectTransform content
         {
             get =>
@@ -609,47 +479,6 @@
             set
             {
                 this.SetNormalizedPosition(value, 0);
-            }
-        }
-
-        public Scrollbar horizontalScrollbar
-        {
-            get =>
-                this.m_HorizontalScrollbar;
-            set
-            {
-                if (this.m_HorizontalScrollbar != null)
-                {
-                    this.m_HorizontalScrollbar.onValueChanged.RemoveListener(new UnityAction<float>(this.SetHorizontalNormalizedPosition));
-                }
-                this.m_HorizontalScrollbar = value;
-                if (this.m_HorizontalScrollbar != null)
-                {
-                    this.m_HorizontalScrollbar.onValueChanged.AddListener(new UnityAction<float>(this.SetHorizontalNormalizedPosition));
-                }
-                this.SetDirtyCaching();
-            }
-        }
-
-        public float horizontalScrollbarSpacing
-        {
-            get =>
-                this.m_HorizontalScrollbarSpacing;
-            set
-            {
-                this.m_HorizontalScrollbarSpacing = value;
-                this.SetDirty();
-            }
-        }
-
-        public ScrollbarVisibility horizontalScrollbarVisibility
-        {
-            get =>
-                this.m_HorizontalScrollbarVisibility;
-            set
-            {
-                this.m_HorizontalScrollbarVisibility = value;
-                this.SetDirtyCaching();
             }
         }
 
@@ -750,47 +579,6 @@
             }
         }
 
-        public Scrollbar verticalScrollbar
-        {
-            get =>
-                this.m_VerticalScrollbar;
-            set
-            {
-                if (this.m_VerticalScrollbar != null)
-                {
-                    this.m_VerticalScrollbar.onValueChanged.RemoveListener(new UnityAction<float>(this.SetVerticalNormalizedPosition));
-                }
-                this.m_VerticalScrollbar = value;
-                if (this.m_VerticalScrollbar != null)
-                {
-                    this.m_VerticalScrollbar.onValueChanged.AddListener(new UnityAction<float>(this.SetVerticalNormalizedPosition));
-                }
-                this.SetDirtyCaching();
-            }
-        }
-
-        public float verticalScrollbarSpacing
-        {
-            get =>
-                this.m_VerticalScrollbarSpacing;
-            set
-            {
-                this.m_VerticalScrollbarSpacing = value;
-                this.SetDirty();
-            }
-        }
-
-        public ScrollbarVisibility verticalScrollbarVisibility
-        {
-            get =>
-                this.m_VerticalScrollbarVisibility;
-            set
-            {
-                this.m_VerticalScrollbarVisibility = value;
-                this.SetDirtyCaching();
-            }
-        }
-
         public RectTransform viewport
         {
             get =>
@@ -828,13 +616,6 @@
                 }
                 return true;
             }
-        }
-
-        public enum ScrollbarVisibility
-        {
-            Permanent,
-            AutoHide,
-            AutoHideAndExpandViewport
         }
 
         [Serializable]
