@@ -2,11 +2,10 @@
 {
     using System;
     using UnityEngine;
-    using UnityEngine.Events;
     using UnityEngine.EventSystems;
 
     [AddComponentMenu("UI/Scroll Rect", 0x25), SelectionBase, ExecuteAlways, DisallowMultipleComponent, RequireComponent(typeof(RectTransform))]
-    public class ScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, ICanvasElement, ILayoutElement, IEventSystemHandler
+    public class ScrollRect : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDragHandler, ICanvasElement
     {
         [SerializeField]
         private RectTransform m_Content;
@@ -18,8 +17,6 @@
         private bool m_HasRebuiltLayout = false;
         [SerializeField]
         private bool m_Horizontal = true;
-        [SerializeField]
-        private ScrollRectEvent m_OnValueChanged = new ScrollRectEvent();
         private Vector2 m_PointerStartLocalCursor = Vector2.zero;
         private Bounds m_PrevContentBounds;
         private Vector2 m_PrevPosition = Vector2.zero;
@@ -55,7 +52,6 @@
         public virtual void CalculateLayoutInputHorizontal()
         {
         }
-
         public virtual void CalculateLayoutInputVertical()
         {
         }
@@ -135,8 +131,7 @@
             return bounds;
         }
 
-        public override bool IsActive() =>
-            (base.IsActive() && (this.m_Content != null));
+        public override bool IsActive() => (base.IsActive() && (this.m_Content != null));
 
         protected virtual void LateUpdate()
         {
@@ -156,7 +151,6 @@
                 if (((this.m_ViewBounds != this.m_PrevViewBounds) || (this.m_ContentBounds != this.m_PrevContentBounds)) || (this.m_Content.anchoredPosition != this.m_PrevPosition))
                 {
                     UISystemProfilerApi.AddMarker("ScrollRect.value", this);
-                    this.m_OnValueChanged.Invoke(this.normalizedPosition);
                     this.UpdatePrevData();
                 }
             }
@@ -166,6 +160,20 @@
         {
         }
 
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
+            this.SetDirty();
+        }
+        protected override void OnDisable()
+        {
+            CanvasUpdateRegistry.UnRegisterCanvasElementForRebuild(this);
+            this.m_HasRebuiltLayout = false;
+            LayoutRebuilder.MarkLayoutForRebuild(this.rectTransform);
+            base.OnDisable();
+        }
+        
         public virtual void OnBeginDrag(PointerEventData eventData)
         {
             if ((eventData.button == PointerEventData.InputButton.Left) && this.IsActive())
@@ -177,15 +185,6 @@
                 this.m_Dragging = true;
             }
         }
-
-        protected override void OnDisable()
-        {
-            CanvasUpdateRegistry.UnRegisterCanvasElementForRebuild(this);
-            this.m_HasRebuiltLayout = false;
-            LayoutRebuilder.MarkLayoutForRebuild(this.rectTransform);
-            base.OnDisable();
-        }
-
         public virtual void OnDrag(PointerEventData eventData)
         {
             Vector2 vector;
@@ -199,26 +198,11 @@
                 this.SetContentAnchoredPosition(position);
             }
         }
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
-            CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
-            this.SetDirty();
-        }
-
         public virtual void OnEndDrag(PointerEventData eventData)
         {
             if (eventData.button == PointerEventData.InputButton.Left)
             {
                 this.m_Dragging = false;
-            }
-        }
-
-        public virtual void OnInitializePotentialDrag(PointerEventData eventData)
-        {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
             }
         }
 
@@ -438,16 +422,6 @@
             }
         }
 
-        public ScrollRectEvent onValueChanged
-        {
-            get =>
-                this.m_OnValueChanged;
-            set
-            {
-                this.m_OnValueChanged = value;
-            }
-        }
-
         public virtual float preferredHeight => -1f;
 
         public virtual float preferredWidth => -1f;
@@ -516,11 +490,6 @@
                 }
                 return this.m_ViewRect;
             }
-        }
-
-        [Serializable]
-        public class ScrollRectEvent : UnityEvent<Vector2>
-        {
         }
     }
 }
