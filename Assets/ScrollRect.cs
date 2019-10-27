@@ -26,7 +26,6 @@
         private Bounds m_PrevViewBounds;
         [NonSerialized]
         private RectTransform m_Rect;
-        private Vector2 m_Velocity;
         [SerializeField]
         private bool m_Vertical = true;
         private Bounds m_ViewBounds;
@@ -147,21 +146,12 @@
                 this.UpdateBounds();
                 float unscaledDeltaTime = Time.unscaledDeltaTime;
                 Vector2 offset = this.CalculateOffset(Vector2.zero);
-                if (!this.m_Dragging && ((offset != Vector2.zero) || (this.m_Velocity != Vector2.zero)))
+                if (!this.m_Dragging && ((offset != Vector2.zero)))
                 {
                     Vector2 anchoredPosition = this.m_Content.anchoredPosition;
-                    for (int i = 0; i < 2; i++)
-                    {
-                        this.m_Velocity[i] = 0f;
-                    }
                     offset = this.CalculateOffset(anchoredPosition - this.m_Content.anchoredPosition);
                     anchoredPosition += offset;
                     this.SetContentAnchoredPosition(anchoredPosition);
-                }
-                if (this.m_Dragging) // && this.m_Inertia
-                {
-                    Vector3 b = (Vector3)((this.m_Content.anchoredPosition - this.m_PrevPosition) / unscaledDeltaTime);
-                    this.m_Velocity = Vector3.Lerp((Vector3)this.m_Velocity, b, unscaledDeltaTime * 10f);
                 }
                 if (((this.m_ViewBounds != this.m_PrevViewBounds) || (this.m_ContentBounds != this.m_PrevContentBounds)) || (this.m_Content.anchoredPosition != this.m_PrevPosition))
                 {
@@ -192,7 +182,6 @@
         {
             CanvasUpdateRegistry.UnRegisterCanvasElementForRebuild(this);
             this.m_HasRebuiltLayout = false;
-            this.m_Velocity = Vector2.zero;
             LayoutRebuilder.MarkLayoutForRebuild(this.rectTransform);
             base.OnDisable();
         }
@@ -230,7 +219,6 @@
         {
             if (eventData.button == PointerEventData.InputButton.Left)
             {
-                this.m_Velocity = Vector2.zero;
             }
         }
 
@@ -248,7 +236,6 @@
         {
             if (executing == CanvasUpdate.Prelayout)
             {
-                this.UpdateCachedData();
             }
             if (executing == CanvasUpdate.PostLayout)
             {
@@ -318,7 +305,6 @@
             {
                 localPosition[axis] = num3;
                 this.m_Content.localPosition = localPosition;
-                this.m_Velocity[axis] = 0f;
                 this.UpdateBounds();
             }
         }
@@ -330,7 +316,6 @@
 
         public virtual void StopMovement()
         {
-            this.m_Velocity = Vector2.zero;
         }
 
         //Transform ICanvasElement.get_transform() =>
@@ -381,11 +366,6 @@
             }
         }
 
-        private void UpdateCachedData()
-        {
-            Transform transform = base.transform;
-        }
-
         protected void UpdatePrevData()
         {
             if (this.m_Content == null)
@@ -410,11 +390,9 @@
             }
         }
 
-        public virtual float flexibleHeight =>
-            -1f;
+        public virtual float flexibleHeight => -1f;
 
-        public virtual float flexibleWidth =>
-            -1f;
+        public virtual float flexibleWidth => -1f;
 
         public bool horizontal
         {
@@ -443,26 +421,11 @@
             }
         }
 
-        private bool hScrollingNeeded
-        {
-            get
-            {
-                if (Application.isPlaying)
-                {
-                    return (this.m_ContentBounds.size.x > (this.m_ViewBounds.size.x + 0.01f));
-                }
-                return true;
-            }
-        }
+        public virtual int layoutPriority => -1;
 
-        public virtual int layoutPriority =>
-            -1;
+        public virtual float minHeight => -1f;
 
-        public virtual float minHeight =>
-            -1f;
-
-        public virtual float minWidth =>
-            -1f;
+        public virtual float minWidth => -1f;
 
         public Vector2 normalizedPosition
         {
@@ -485,11 +448,9 @@
             }
         }
 
-        public virtual float preferredHeight =>
-            -1f;
+        public virtual float preferredHeight => -1f;
 
-        public virtual float preferredWidth =>
-            -1f;
+        public virtual float preferredWidth => -1f;
 
         private RectTransform rectTransform
         {
@@ -500,16 +461,6 @@
                     this.m_Rect = base.GetComponent<RectTransform>();
                 }
                 return this.m_Rect;
-            }
-        }
-
-        public Vector2 velocity
-        {
-            get =>
-                this.m_Velocity;
-            set
-            {
-                this.m_Velocity = value;
             }
         }
 
@@ -564,18 +515,6 @@
                     this.m_ViewRect = (RectTransform)base.transform;
                 }
                 return this.m_ViewRect;
-            }
-        }
-
-        private bool vScrollingNeeded
-        {
-            get
-            {
-                if (Application.isPlaying)
-                {
-                    return (this.m_ContentBounds.size.y > (this.m_ViewBounds.size.y + 0.01f));
-                }
-                return true;
             }
         }
 
