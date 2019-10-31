@@ -35,16 +35,16 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
 
     internal static void AdjustBounds(ref Bounds viewBounds, ref Vector2 contentPivot, ref Vector3 contentSize, ref Vector3 contentPos)
     {
-        Vector3 vector = viewBounds.size - contentSize;
+        Vector3 vector = viewBounds.size - contentSize; //viewPort边界尺寸减去content尺寸
         if (vector.x > 0f)
-        {
+        {//如果viewPort比content宽
             contentPos.x -= vector.x * (contentPivot.x - 0.5f);
-            contentSize.x = viewBounds.size.x;
+            contentSize.x = viewBounds.size.x; //content的宽设为viewPort的宽
         }
         if (vector.y > 0f)
-        {
+        {//如果viewPort比content高
             contentPos.y -= vector.y * (contentPivot.y - 0.5f);
-            contentSize.y = viewBounds.size.y;
+            contentSize.y = viewBounds.size.y; //content的高设为viewPort的高
         }
     }
 
@@ -153,7 +153,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     {
         if ((eventData.button == PointerEventData.InputButton.Left) && IsActive())
         {
-            UpdateBounds();
+            //UpdateBounds();
             m_PointerStartLocalCursor = Vector2.zero;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(viewRect, eventData.position, eventData.pressEventCamera, out m_PointerStartLocalCursor);
             m_ContentStartPosition = m_Content.anchoredPosition;
@@ -163,9 +163,9 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     public virtual void OnDrag(PointerEventData eventData)
     {
         Vector2 vector;
-        if (((eventData.button == PointerEventData.InputButton.Left) && IsActive()) && RectTransformUtility.ScreenPointToLocalPointInRectangle(viewRect, eventData.position, eventData.pressEventCamera, out vector))
+        if ((eventData.button == PointerEventData.InputButton.Left) && IsActive() && RectTransformUtility.ScreenPointToLocalPointInRectangle(viewRect, eventData.position, eventData.pressEventCamera, out vector))
         {
-            UpdateBounds();
+            //UpdateBounds();
             Vector2 vector2 = vector - m_PointerStartLocalCursor;
             Vector2 position = m_ContentStartPosition + vector2;
             Vector2 vector4 = CalculateOffset(position - m_Content.anchoredPosition);
@@ -218,7 +218,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     {
         if (executing == CanvasUpdate.PostLayout)
         {
-            UpdateBounds();
+            //UpdateBounds();
             UpdatePrevData();
             m_HasRebuiltLayout = true;
         }
@@ -237,7 +237,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         if (position != m_Content.anchoredPosition)
         {
             m_Content.anchoredPosition = position;
-            UpdateBounds();
+            //UpdateBounds();
         }
     }
 
@@ -268,23 +268,23 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
             Vector3 center = m_ContentBounds.center;
             Vector2 pivot = m_Content.pivot;
             AdjustBounds(ref m_ViewBounds, ref pivot, ref size, ref center);
-            m_ContentBounds.size = size;
+            m_ContentBounds.size = size; //保证contentBounds的尺寸不小于viewPort的尺寸
             m_ContentBounds.center = center;
             Vector2 zero = Vector2.zero;
             if (m_ViewBounds.max.x > m_ContentBounds.max.x)
-            {
+            {//如果view包围盒右上角点在content包围盒右上角点的右边
                 zero.x = Math.Min(m_ViewBounds.min.x - m_ContentBounds.min.x, m_ViewBounds.max.x - m_ContentBounds.max.x);
             }
             else if (m_ViewBounds.min.x < m_ContentBounds.min.x)
-            {
+            {//如果view包围盒左下角点在content包围盒左下角点的左边
                 zero.x = Math.Max(m_ViewBounds.min.x - m_ContentBounds.min.x, m_ViewBounds.max.x - m_ContentBounds.max.x);
             }
             if (m_ViewBounds.min.y < m_ContentBounds.min.y)
-            {
+            {//如果view包围盒左下角点在content包围盒左下角点的下边
                 zero.y = Math.Max(m_ViewBounds.min.y - m_ContentBounds.min.y, m_ViewBounds.max.y - m_ContentBounds.max.y);
             }
             else if (m_ViewBounds.max.y > m_ContentBounds.max.y)
-            {
+            {//如果view包围盒右上角点在content包围盒右上角点的上边
                 zero.y = Math.Min(m_ViewBounds.min.y - m_ContentBounds.min.y, m_ViewBounds.max.y - m_ContentBounds.max.y);
             }
             if (zero.sqrMagnitude > float.Epsilon)
@@ -301,6 +301,15 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
                 AdjustBounds(ref m_ViewBounds, ref pivot, ref size, ref center);
             }
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        float f = 0.001851852f;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(m_ContentBounds.center, m_ContentBounds.size * f);
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube(m_ViewBounds.center, m_ViewBounds.size * f);
     }
 
     protected void UpdatePrevData()
