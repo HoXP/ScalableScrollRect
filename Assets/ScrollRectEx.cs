@@ -187,7 +187,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         }
     }
 
-    private Vector2 CalculateOffset(Vector2 delta) =>
+    protected Vector2 CalculateOffset(Vector2 delta) =>
         InternalCalculateOffset(ref m_ViewBounds, ref m_ContentBounds, m_Horizontal, m_Vertical, ref delta);
     internal static Vector2 InternalCalculateOffset(ref Bounds viewBounds, ref Bounds contentBounds, bool horizontal, bool vertical, ref Vector2 delta)
     {
