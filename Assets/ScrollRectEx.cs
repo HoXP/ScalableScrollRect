@@ -22,10 +22,10 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     private bool m_Horizontal = true;
     [SerializeField]
     private bool m_Vertical = true;
-    private bool m_Dragging;
+    private bool m_Dragging; //是否正在拖动
     private Vector2 m_PrevPosition = Vector2.zero;
-    protected Vector2 m_ContentStartPosition = Vector2.zero;
-    private Vector2 m_PointerStartLocalCursor = Vector2.zero;
+    protected Vector2 m_ContentStartPosition = Vector2.zero; //拖动起始，content的anchorPosition
+    private Vector2 m_PointerStartLocalCursor = Vector2.zero; //拖动起始，touch点在viewport下的坐标
     [NonSerialized]
     private bool m_HasRebuiltLayout = false;
 
@@ -33,107 +33,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     {
     }
 
-    internal static void AdjustBounds(ref Bounds viewBounds, ref Vector2 contentPivot, ref Vector3 contentSize, ref Vector3 contentPos)
-    {
-        Vector3 vector = viewBounds.size - contentSize; //viewPort边界尺寸减去content尺寸
-        if (vector.x > 0f)
-        {//如果viewPort比content宽
-            contentPos.x -= vector.x * (contentPivot.x - 0.5f);
-            contentSize.x = viewBounds.size.x; //content的宽设为viewPort的宽
-        }
-        if (vector.y > 0f)
-        {//如果viewPort比content高
-            contentPos.y -= vector.y * (contentPivot.y - 0.5f);
-            contentSize.y = viewBounds.size.y; //content的高设为viewPort的高
-        }
-    }
-
-    private Vector2 CalculateOffset(Vector2 delta) =>
-        InternalCalculateOffset(ref m_ViewBounds, ref m_ContentBounds, m_Horizontal, m_Vertical, ref delta);
-
-    private void EnsureLayoutHasRebuilt()
-    {
-        if (!m_HasRebuiltLayout && !CanvasUpdateRegistry.IsRebuildingLayout())
-        {
-            Canvas.ForceUpdateCanvases();
-        }
-    }
-
-    private Bounds GetBounds()
-    {
-        if (m_Content == null)
-        {
-            return new Bounds();
-        }
-        m_Content.GetWorldCorners(m_Corners);   //拿到content的四个角的世界坐标
-        Matrix4x4 worldToLocalMatrix = viewRect.worldToLocalMatrix; //拿到viewRect的世界空间—本地空间的转换矩阵
-        return InternalGetBounds(m_Corners, ref worldToLocalMatrix);
-    }
-
-    public virtual void GraphicUpdateComplete()
-    {
-    }
-
-    internal static Vector2 InternalCalculateOffset(ref Bounds viewBounds, ref Bounds contentBounds, bool horizontal, bool vertical, ref Vector2 delta)
-    {
-        Vector2 zero = Vector2.zero;
-        Vector2 min = contentBounds.min;
-        Vector2 max = contentBounds.max;
-        if (horizontal)
-        {
-            min.x += delta.x;
-            max.x += delta.x;
-            if (min.x > viewBounds.min.x)
-            {
-                zero.x = viewBounds.min.x - min.x;
-            }
-            else if (max.x < viewBounds.max.x)
-            {
-                zero.x = viewBounds.max.x - max.x;
-            }
-        }
-        if (vertical)
-        {
-            min.y += delta.y;
-            max.y += delta.y;
-            if (max.y < viewBounds.max.y)
-            {
-                zero.y = viewBounds.max.y - max.y;
-            }
-            else if (min.y > viewBounds.min.y)
-            {
-                zero.y = viewBounds.min.y - min.y;
-            }
-        }
-        return zero;
-    }
-
-    /// <summary>
-    /// 根据一个矩形的四个角的世界坐标数组计算囊括数组所有条目的Bounds
-    /// </summary>
-    /// <param name="corners"></param>
-    /// <param name="viewWorldToLocalMatrix"></param>
-    /// <returns></returns>
-    internal static Bounds InternalGetBounds(Vector3[] corners, ref Matrix4x4 viewWorldToLocalMatrix)
-    {
-        Vector3 rhs = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
-        Vector3 vector2 = new Vector3(float.MinValue, float.MinValue, float.MinValue);
-        for (int i = 0; i < 4; i++)
-        {
-            Vector3 lhs = viewWorldToLocalMatrix.MultiplyPoint3x4(corners[i]);  //把content的四个角的世界坐标转换为相对于viewport的本地坐标
-            rhs = Vector3.Min(lhs, rhs);    //从四个角本地坐标中拿到最左下角的坐标赋给rhs
-            vector2 = Vector3.Max(lhs, vector2);    //最右上角的坐标赋给vector2
-        }
-        Bounds bounds = new Bounds(rhs, Vector3.zero);  //新建一个Bounds，中心是rhs，即viewport左下角
-        bounds.Encapsulate(vector2);    //囊括住vector2，这样Bounds的center就是rhs和vector2的中点了，而这个Bounds的左下角就是rhs，右上角就是vector2
-        return bounds;
-    }
-
     public override bool IsActive() => base.IsActive() && (m_Content != null);
-
-    public virtual void LayoutComplete()
-    {
-    }
 
     protected override void OnEnable()
     {
@@ -153,7 +53,7 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     {
         if ((eventData.button == PointerEventData.InputButton.Left) && IsActive())
         {
-            //UpdateBounds();
+            UpdateBounds();
             m_PointerStartLocalCursor = Vector2.zero;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(viewRect, eventData.position, eventData.pressEventCamera, out m_PointerStartLocalCursor);
             m_ContentStartPosition = m_Content.anchoredPosition;
@@ -162,12 +62,12 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     }
     public virtual void OnDrag(PointerEventData eventData)
     {
-        Vector2 vector;
+        Vector2 vector; //拖拽过程中，touch点在viewport下的坐标
         if ((eventData.button == PointerEventData.InputButton.Left) && IsActive() && RectTransformUtility.ScreenPointToLocalPointInRectangle(viewRect, eventData.position, eventData.pressEventCamera, out vector))
         {
-            //UpdateBounds();
-            Vector2 vector2 = vector - m_PointerStartLocalCursor;
-            Vector2 position = m_ContentStartPosition + vector2;
+            UpdateBounds();
+            Vector2 vector2 = vector - m_PointerStartLocalCursor; //当前touch点到touch起点的向量
+            Vector2 position = m_ContentStartPosition + vector2; //content起始anchorPosition加上vector2，得到不限制content坐标时content的anchorPosition
             Vector2 vector4 = CalculateOffset(position - m_Content.anchoredPosition);
             position += vector4;
             SetContentAnchoredPosition(position);
@@ -187,9 +87,8 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         {
             EnsureLayoutHasRebuilt();
             UpdateBounds();
-            float unscaledDeltaTime = Time.unscaledDeltaTime;
             Vector2 offset = CalculateOffset(Vector2.zero);
-            if (!m_Dragging && (offset != Vector2.zero))
+            if (!m_Dragging && offset != Vector2.zero)
             {
                 Vector2 anchoredPosition = m_Content.anchoredPosition;
                 offset = CalculateOffset(anchoredPosition - m_Content.anchoredPosition);
@@ -198,66 +97,15 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
             }
             if ((m_ViewBounds != m_PrevViewBounds) || (m_ContentBounds != m_PrevContentBounds) || (m_Content.anchoredPosition != m_PrevPosition))
             {
-                UISystemProfilerApi.AddMarker("ScrollRectEx.value", this);
+                //UISystemProfilerApi.AddMarker("ScrollRectEx.value", this);
                 UpdatePrevData();
             }
         }
     }
 
-    protected override void OnRectTransformDimensionsChange()
-    {
-        SetDirty();
-    }
-
-    protected override void OnValidate()
-    {
-        SetDirtyCaching();
-    }
-
-    public virtual void Rebuild(CanvasUpdate executing)
-    {
-        if (executing == CanvasUpdate.PostLayout)
-        {
-            //UpdateBounds();
-            UpdatePrevData();
-            m_HasRebuiltLayout = true;
-        }
-    }
-
-    protected virtual void SetContentAnchoredPosition(Vector2 position)
-    {
-        if (!m_Horizontal)
-        {
-            position.x = m_Content.anchoredPosition.x;
-        }
-        if (!m_Vertical)
-        {
-            position.y = m_Content.anchoredPosition.y;
-        }
-        if (position != m_Content.anchoredPosition)
-        {
-            m_Content.anchoredPosition = position;
-            //UpdateBounds();
-        }
-    }
-
-    protected void SetDirty()
-    {
-        if (IsActive())
-        {
-            LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
-        }
-    }
-
-    protected void SetDirtyCaching()
-    {
-        if (IsActive())
-        {
-            CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
-            LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
-        }
-    }
-
+    /// <summary>
+    /// 更新viewPort和content的包围盒
+    /// </summary>
     protected void UpdateBounds()
     {
         m_ViewBounds = new Bounds(viewRect.rect.center, viewRect.rect.size);    //根据viewRect的center和size实例一个Bounds
@@ -302,14 +150,114 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
             }
         }
     }
-
-    private void OnDrawGizmos()
+    private Bounds GetBounds()
     {
-        float f = 0.001851852f;
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(m_ContentBounds.center, m_ContentBounds.size * f);
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(m_ViewBounds.center, m_ViewBounds.size * f);
+        if (m_Content == null)
+        {
+            return new Bounds();
+        }
+        m_Content.GetWorldCorners(m_Corners);   //拿到content的四个角的世界坐标
+        Matrix4x4 worldToLocalMatrix = viewRect.worldToLocalMatrix; //拿到viewRect的世界空间—本地空间的转换矩阵
+        return InternalGetBounds(m_Corners, ref worldToLocalMatrix);
+    }
+    /// <summary>
+    /// 根据一个矩形的四个角的世界坐标数组计算囊括数组所有条目的Bounds
+    /// </summary>
+    /// <param name="corners"></param>
+    /// <param name="viewWorldToLocalMatrix"></param>
+    /// <returns></returns>
+    internal static Bounds InternalGetBounds(Vector3[] corners, ref Matrix4x4 viewWorldToLocalMatrix)
+    {
+        Vector3 rhs = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        Vector3 vector2 = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 lhs = viewWorldToLocalMatrix.MultiplyPoint3x4(corners[i]);  //把content的四个角的世界坐标转换为相对于viewport的本地坐标
+            rhs = Vector3.Min(lhs, rhs);    //从四个角本地坐标中拿到最左下角的坐标赋给rhs
+            vector2 = Vector3.Max(lhs, vector2);    //最右上角的坐标赋给vector2
+        }
+        Bounds bounds = new Bounds(rhs, Vector3.zero);  //新建一个Bounds，中心是rhs，即viewport左下角
+        bounds.Encapsulate(vector2);    //囊括住vector2，这样Bounds的center就是rhs和vector2的中点了，而这个Bounds的左下角就是rhs，右上角就是vector2
+        return bounds;
+    }
+    internal static void AdjustBounds(ref Bounds viewBounds, ref Vector2 contentPivot, ref Vector3 contentSize, ref Vector3 contentPos)
+    {
+        Vector3 vector = viewBounds.size - contentSize; //viewPort边界尺寸减去content尺寸
+        if (vector.x > 0f)
+        {//如果viewPort比content宽
+            contentPos.x -= vector.x * (contentPivot.x - 0.5f);
+            contentSize.x = viewBounds.size.x; //content的宽设为viewPort的宽
+        }
+        if (vector.y > 0f)
+        {//如果viewPort比content高
+            contentPos.y -= vector.y * (contentPivot.y - 0.5f);
+            contentSize.y = viewBounds.size.y; //content的高设为viewPort的高
+        }
+    }
+
+    private Vector2 CalculateOffset(Vector2 delta) =>
+        InternalCalculateOffset(ref m_ViewBounds, ref m_ContentBounds, m_Horizontal, m_Vertical, ref delta);
+    internal static Vector2 InternalCalculateOffset(ref Bounds viewBounds, ref Bounds contentBounds, bool horizontal, bool vertical, ref Vector2 delta)
+    {
+        Vector2 zero = Vector2.zero;
+        Vector2 min = contentBounds.min;
+        Vector2 max = contentBounds.max;
+        if (horizontal)
+        {
+            min.x += delta.x;
+            max.x += delta.x;
+            if (min.x > viewBounds.min.x)
+            {
+                zero.x = viewBounds.min.x - min.x;
+            }
+            else if (max.x < viewBounds.max.x)
+            {
+                zero.x = viewBounds.max.x - max.x;
+            }
+        }
+        if (vertical)
+        {
+            min.y += delta.y;
+            max.y += delta.y;
+            if (max.y < viewBounds.max.y)
+            {
+                zero.y = viewBounds.max.y - max.y;
+            }
+            else if (min.y > viewBounds.min.y)
+            {
+                zero.y = viewBounds.min.y - min.y;
+            }
+        }
+        return zero;
+    }
+
+    /// <summary>
+    /// 设置content的anchorPosition
+    /// </summary>
+    /// <param name="position"></param>
+    protected virtual void SetContentAnchoredPosition(Vector2 position)
+    {
+        if (!m_Horizontal)
+        {
+            position.x = m_Content.anchoredPosition.x;
+        }
+        if (!m_Vertical)
+        {
+            position.y = m_Content.anchoredPosition.y;
+        }
+        if (position != m_Content.anchoredPosition)
+        {
+            m_Content.anchoredPosition = position;
+            UpdateBounds();
+        }
+    }
+
+    private void EnsureLayoutHasRebuilt()
+    {
+        if (!m_HasRebuiltLayout && !CanvasUpdateRegistry.IsRebuildingLayout())
+        {
+            Canvas.ForceUpdateCanvases();
+        }
     }
 
     protected void UpdatePrevData()
@@ -326,15 +274,56 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         m_PrevContentBounds = m_ContentBounds;
     }
 
-    public RectTransform content
+    protected override void OnRectTransformDimensionsChange()
     {
-        get =>
-            m_Content;
-        set
+        SetDirty();
+    }
+    protected override void OnValidate()
+    {
+        SetDirtyCaching();
+    }
+    protected void SetDirty()
+    {
+        if (IsActive())
         {
-            m_Content = value;
+            LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
         }
     }
+    protected void SetDirtyCaching()
+    {
+        if (IsActive())
+        {
+            CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
+            LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
+        }
+    }
+
+    public virtual void GraphicUpdateComplete()
+    {
+    }
+    public virtual void LayoutComplete()
+    {
+    }
+    public virtual void Rebuild(CanvasUpdate executing)
+    {
+        if (executing == CanvasUpdate.PostLayout)
+        {
+            UpdateBounds();
+            UpdatePrevData();
+            m_HasRebuiltLayout = true;
+        }
+    }
+
+#if UNITY_EDITOR
+    private void OnDrawGizmos()
+    {
+        float f = 0.001851852f;
+        Gizmos.color = new Color(0, 1, 0, 0.1f);
+        Gizmos.DrawCube(m_ContentBounds.center, m_ContentBounds.size * f);
+        Gizmos.color = new Color(1, 0, 0, 0.3f);
+        Gizmos.DrawCube(m_ViewBounds.center, m_ViewBounds.size * f);
+    }
+#endif
 
     public bool horizontal
     {
@@ -366,7 +355,6 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
             return m_Rect;
         }
     }
-
     public RectTransform viewport
     {
         get =>
@@ -390,6 +378,15 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
                 m_ViewRect = (RectTransform)base.transform;
             }
             return m_ViewRect;
+        }
+    }
+    public RectTransform content
+    {
+        get =>
+            m_Content;
+        set
+        {
+            m_Content = value;
         }
     }
 }
