@@ -12,18 +12,15 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
     private RectTransform m_Viewport;
     private RectTransform m_ViewRect;
     private Bounds m_ViewBounds;
-    private Bounds m_PrevViewBounds;
     [SerializeField]
     private RectTransform m_Content;
     protected Bounds m_ContentBounds;
-    private Bounds m_PrevContentBounds;
     private readonly Vector3[] m_Corners = new Vector3[4];
     [SerializeField]
     private bool m_Horizontal = true;
     [SerializeField]
     private bool m_Vertical = true;
     private bool m_Dragging; //是否正在拖动
-    private Vector2 m_PrevPosition = Vector2.zero;
     protected Vector2 m_ContentStartPosition = Vector2.zero; //拖动起始，content的anchorPosition
     private Vector2 m_PointerStartLocalCursor = Vector2.zero; //拖动起始，touch点在viewport下的坐标
     [NonSerialized]
@@ -94,11 +91,6 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
                 offset = CalculateOffset(anchoredPosition - m_Content.anchoredPosition);
                 anchoredPosition += offset;
                 SetContentAnchoredPosition(anchoredPosition);
-            }
-            if ((m_ViewBounds != m_PrevViewBounds) || (m_ContentBounds != m_PrevContentBounds) || (m_Content.anchoredPosition != m_PrevPosition))
-            {
-                //UISystemProfilerApi.AddMarker("ScrollRectEx.value", this);
-                UpdatePrevData();
             }
         }
     }
@@ -260,20 +252,6 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         }
     }
 
-    protected void UpdatePrevData()
-    {
-        if (m_Content == null)
-        {
-            m_PrevPosition = Vector2.zero;
-        }
-        else
-        {
-            m_PrevPosition = m_Content.anchoredPosition;
-        }
-        m_PrevViewBounds = m_ViewBounds;
-        m_PrevContentBounds = m_ContentBounds;
-    }
-
     protected override void OnRectTransformDimensionsChange()
     {
         SetDirty();
@@ -309,7 +287,6 @@ public class ScrollRectEx : UIBehaviour, IBeginDragHandler, IEndDragHandler, IDr
         if (executing == CanvasUpdate.PostLayout)
         {
             UpdateBounds();
-            UpdatePrevData();
             m_HasRebuiltLayout = true;
         }
     }
